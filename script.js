@@ -1,9 +1,39 @@
-// ---- Advanced Daily Tracker ----
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+import {
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  deleteDoc,
+  onSnapshot,
+  getDocs
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
-// Default starter tasks
+const firebaseConfig = {
+  apiKey: "AIzaSyCzdRSUly0I_toLWBz5eaJWk-m8s9o0A2U",
+  authDomain: "daily-tracker-9bdfc.firebaseapp.com",
+  projectId: "daily-tracker-9bdfc",
+  storageBucket: "daily-tracker-9bdfc.firebasestorage.app",
+  messagingSenderId: "397947500484",
+  appId: "1:397947500484:web:47c4c99a105683f23a5691",
+  measurementId: "G-LB29CGY85M"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
+
 const defaultTasks = [
   {
-    id: crypto.randomUUID(),
+    id: "gym",
     name: "Gym",
     category: "Health",
     priority: "High",
@@ -11,7 +41,7 @@ const defaultTasks = [
     completed: false
   },
   {
-    id: crypto.randomUUID(),
+    id: "study",
     name: "Study",
     category: "Study",
     priority: "High",
@@ -19,7 +49,7 @@ const defaultTasks = [
     completed: false
   },
   {
-    id: crypto.randomUUID(),
+    id: "read",
     name: "Read",
     category: "Personal",
     priority: "Medium",
@@ -28,7 +58,6 @@ const defaultTasks = [
   }
 ];
 
-// Elements
 const taskList = document.getElementById("taskList");
 const progressBar = document.getElementById("progressBar");
 const progressText = document.getElementById("progressText");
@@ -47,21 +76,16 @@ const taskNoteInput = document.getElementById("taskNote");
 
 const filterButtons = document.querySelectorAll(".filter-btn");
 
-// Storage keys
-const TASKS_KEY = "dailyTrackerTasks_v2";
-const DAY_KEY = "dailyTrackerDay_v2";
-const FILTER_KEY = "dailyTrackerFilter_v2";
+const loginBtn = document.getElementById("loginBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const userInfo = document.getElementById("userInfo");
 
-// Helper: get YYYY-MM-DD
-function todayKey() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+const FILTER_KEY = "dailyTrackerFilter_v3";
 
-// Display-friendly date
+let currentUser = null;
+let liveTasks = [];
+let unsubscribeTasks = null;
+
 function formatPrettyDate() {
   return new Date().toLocaleDateString(undefined, {
     weekday: "long",
@@ -69,19 +93,6 @@ function formatPrettyDate() {
     month: "long",
     day: "numeric"
   });
-}
-
-function loadTasks() {
-  try {
-    const raw = localStorage.getItem(TASKS_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveTasks(tasks) {
-  localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
 }
 
 function loadFilter() {
@@ -92,91 +103,82 @@ function saveFilter(filter) {
   localStorage.setItem(FILTER_KEY, filter);
 }
 
-function ensureFreshDay() {
-  const lastDay = localStorage.getItem(DAY_KEY);
-  const nowDay = todayKey();
+function getFilteredTasks(tasks, filter) {
+  if (filter === "active") return tasks.filter(task => !task.completed);
+  if (filter === "completed") return tasks.filter(task => task.completed);
+  return tasks;
+}
 
-  if (lastDay !== nowDay) {
-    localStorage.setItem(DAY_KEY, nowDay);
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (char) => {
+    const map = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    };
+    return map[char];
+  });
+}
 
-    let tasks = loadTasks();
+function tasksCollection(uid) {
+  return collection(db, "users", uid, "tasks");
+}
 
-    if (!tasks) {
-      saveTasks(defaultTasks);
-      return;
-    }
+async function seedDefaultTasks(uid) {
+  const snapshot = await getDocs(tasksCollection(uid));
+  if (!snapshot.empty) return;
 
-    // Reset completion for a new day
-    tasks = tasks.map(task => ({
-      ...task,
-      completed: false
-    }));
-
-    saveTasks(tasks);
+  for (const task of defaultTasks) {
+    await setDoc(doc(db, "users", uid, "tasks", task.id), task);
   }
 }
 
-function initializeTasks() {
-  const existing = loadTasks();
-  if (!existing) {
-    saveTasks(defaultTasks);
-  }
-}
+async function addTask({ name, category, priority, note }) {
+  if (!currentUser) return;
 
-function getTasks() {
-  return loadTasks() || [];
-}
+  const id = crypto.randomUUID();
 
-function updateTask(id, updates) {
-  const tasks = getTasks().map(task =>
-    task.id === id ? { ...task, ...updates } : task
-  );
-  saveTasks(tasks);
-  render();
-}
-
-function deleteTask(id) {
-  const tasks = getTasks().filter(task => task.id !== id);
-  saveTasks(tasks);
-  render();
-}
-
-function addTask({ name, category, priority, note }) {
-  const tasks = getTasks();
-  tasks.push({
-    id: crypto.randomUUID(),
+  const task = {
+    id,
     name,
     category,
     priority,
     note,
     completed: false
-  });
-  saveTasks(tasks);
-  render();
+  };
+
+  await setDoc(doc(db, "users", currentUser.uid, "tasks", id), task);
 }
 
-function getFilteredTasks(tasks, filter) {
-  if (filter === "active") {
-    return tasks.filter(task => !task.completed);
-  }
-  if (filter === "completed") {
-    return tasks.filter(task => task.completed);
-  }
-  return tasks;
+async function updateTask(id, updates) {
+  if (!currentUser) return;
+
+  const existing = liveTasks.find((task) => task.id === id);
+  if (!existing) return;
+
+  await setDoc(
+    doc(db, "users", currentUser.uid, "tasks", id),
+    { ...existing, ...updates },
+    { merge: true }
+  );
+}
+
+async function removeTask(id) {
+  if (!currentUser) return;
+  await deleteDoc(doc(db, "users", currentUser.uid, "tasks", id));
 }
 
 function render() {
-  ensureFreshDay();
   todayDate.textContent = formatPrettyDate();
-
-  const tasks = getTasks();
-  const filter = loadFilter();
-  const visibleTasks = getFilteredTasks(tasks, filter);
-
   taskList.innerHTML = "";
 
-  const completed = tasks.filter(task => task.completed).length;
-  const total = tasks.length;
+  const filter = loadFilter();
+  const visibleTasks = getFilteredTasks(liveTasks, filter);
+
+  const completed = liveTasks.filter((task) => task.completed).length;
+  const total = liveTasks.length;
   const remaining = total - completed;
   const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
 
@@ -187,31 +189,26 @@ function render() {
   completedTasks.textContent = completed;
   remainingTasks.textContent = remaining;
 
-  if (total === 0) {
+  if (!currentUser) {
+    status.textContent = "Sign in to sync your tasks across devices.";
+  } else if (total === 0) {
     status.textContent = "No tasks yet — start building your day.";
   } else if (percent === 100) {
-    status.textContent = "Everything is done for today 🎉 Excellent work.";
-  } else if (percent >= 70) {
-    status.textContent = "You’re doing really well today — nearly there.";
-  } else if (percent >= 40) {
-    status.textContent = "Nice progress so far — keep pushing.";
+    status.textContent = "Everything is done for today 🎉";
   } else {
-    status.textContent = "Let’s get moving — one task at a time.";
+    status.textContent = "Your tasks are syncing across devices.";
   }
 
   if (visibleTasks.length === 0) {
     emptyMessage.style.display = "block";
-    emptyMessage.textContent =
-      filter === "completed"
-        ? "No completed tasks yet."
-        : filter === "active"
-        ? "No active tasks left."
-        : "No tasks yet. Add one above.";
+    emptyMessage.textContent = currentUser
+      ? "No matching tasks."
+      : "Sign in to load your synced tasks.";
   } else {
     emptyMessage.style.display = "none";
   }
 
-  visibleTasks.forEach(task => {
+  visibleTasks.forEach((task) => {
     const li = document.createElement("li");
     li.className = "task-item";
 
@@ -227,7 +224,9 @@ function render() {
             </h3>
             <div class="task-meta">
               <span class="badge category">${escapeHtml(task.category)}</span>
-              <span class="badge ${priorityClass}">${escapeHtml(task.priority)} Priority</span>
+              <span class="badge ${priorityClass}">
+                ${escapeHtml(task.priority)} Priority
+              </span>
             </div>
             ${task.note ? `<p class="task-note">${escapeHtml(task.note)}</p>` : ""}
           </div>
@@ -239,38 +238,47 @@ function render() {
     const checkbox = li.querySelector('input[type="checkbox"]');
     const deleteBtn = li.querySelector(".delete-btn");
 
-    checkbox.addEventListener("change", () => {
-      updateTask(task.id, { completed: checkbox.checked });
+    checkbox.addEventListener("change", async () => {
+      await updateTask(task.id, { completed: checkbox.checked });
     });
 
-    deleteBtn.addEventListener("click", () => {
-      deleteTask(task.id);
+    deleteBtn.addEventListener("click", async () => {
+      await removeTask(task.id);
     });
 
     taskList.appendChild(li);
   });
 
-  filterButtons.forEach(btn => {
+  filterButtons.forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.filter === filter);
   });
+
+  loginBtn.hidden = !!currentUser;
+  logoutBtn.hidden = !currentUser;
+  userInfo.textContent = currentUser
+    ? `Signed in as ${currentUser.displayName || currentUser.email || "user"}`
+    : "Not signed in";
 }
 
-function escapeHtml(str) {
-  return str.replace(/[&<>"']/g, char => {
-    const map = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    };
-    return map[char];
-  });
-}
+loginBtn.addEventListener("click", async () => {
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (err) {
+    alert("Sign-in failed: " + err.message);
+  }
+});
 
-// Add task form
-taskForm.addEventListener("submit", (e) => {
+logoutBtn.addEventListener("click", async () => {
+  await signOut(auth);
+});
+
+taskForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+
+  if (!currentUser) {
+    alert("Please sign in first.");
+    return;
+  }
 
   const name = taskNameInput.value.trim();
   const category = taskCategoryInput.value;
@@ -279,21 +287,39 @@ taskForm.addEventListener("submit", (e) => {
 
   if (!name) return;
 
-  addTask({ name, category, priority, note });
+  await addTask({ name, category, priority, note });
 
   taskForm.reset();
   taskPriorityInput.value = "Medium";
 });
 
-// Filter buttons
-filterButtons.forEach(btn => {
+filterButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
     saveFilter(btn.dataset.filter);
     render();
   });
 });
 
-// Init
-initializeTasks();
-ensureFreshDay();
+onAuthStateChanged(auth, async (user) => {
+  if (unsubscribeTasks) {
+    unsubscribeTasks();
+    unsubscribeTasks = null;
+  }
+
+  currentUser = user;
+
+  if (!user) {
+    liveTasks = [];
+    render();
+    return;
+  }
+
+  await seedDefaultTasks(user.uid);
+
+  unsubscribeTasks = onSnapshot(tasksCollection(user.uid), (snapshot) => {
+    liveTasks = snapshot.docs.map((docItem) => docItem.data());
+    render();
+  });
+});
+
 render();
