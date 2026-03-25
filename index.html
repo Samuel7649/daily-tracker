@@ -3,91 +3,201 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Daily Productivity Tracker</title>
+  <title>Life Tracker</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="app">
-    <div class="auth-bar">
-      <button id="loginBtn">Sign in with Google</button>
-      <button id="logoutBtn" hidden>Log out</button>
-      <p id="userInfo">Not signed in</p>
-    </div>
-
-    <header class="header">
-      <div>
-        <h1>Daily Productivity Tracker</h1>
-        <p id="status" class="status"></p>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>Life Tracker</h1>
+        <p>Track your life, not just tasks.</p>
       </div>
-      <div class="date-box">
-        <span>Today</span>
-        <strong id="todayDate"></strong>
+
+      <div class="auth-bar">
+        <button id="loginBtn">Sign in with Google</button>
+        <button id="logoutBtn" hidden>Log out</button>
+        <p id="userInfo">Not signed in</p>
       </div>
-    </header>
 
-    <section class="card controls">
-      <h2>Add Task</h2>
-      <form id="taskForm" class="task-form">
-        <input type="text" id="taskName" placeholder="Task name" required />
-        
-        <select id="taskCategory">
-          <option value="Health">Health</option>
-          <option value="Study">Study</option>
-          <option value="Work">Work</option>
-          <option value="Personal">Personal</option>
-          <option value="Other">Other</option>
-        </select>
-
-        <select id="taskPriority">
-          <option value="Low">Low Priority</option>
-          <option value="Medium" selected>Medium Priority</option>
-          <option value="High">High Priority</option>
-        </select>
-
-        <textarea id="taskNote" placeholder="Optional note..."></textarea>
-
-        <button type="submit">Add Task</button>
-      </form>
-    </section>
-
-    <section class="card stats">
-      <h2>Progress</h2>
-
-      <div class="progress">
-        <div id="progressBar"></div>
+      <div class="theme-wrap">
+        <button id="themeToggle" class="secondary-btn" type="button">Toggle Dark Mode</button>
       </div>
-      <p id="progressText" class="progress-text"></p>
 
-      <div class="stat-grid">
-        <div class="stat-box">
-          <span>Total</span>
-          <strong id="totalTasks">0</strong>
+      <nav class="nav-tabs">
+        <button type="button" class="tab-btn active" data-tab="dashboard">Dashboard</button>
+        <button type="button" class="tab-btn" data-tab="tasks">Tasks</button>
+        <button type="button" class="tab-btn" data-tab="workouts">Gym</button>
+        <button type="button" class="tab-btn" data-tab="budget">Budget</button>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <h2 id="pageTitle">Dashboard</h2>
+          <p id="statusText">Sign in to sync your life data across devices.</p>
         </div>
-        <div class="stat-box">
-          <span>Completed</span>
-          <strong id="completedTasks">0</strong>
+        <div class="date-box">
+          <span>Today</span>
+          <strong id="todayDate"></strong>
         </div>
-        <div class="stat-box">
-          <span>Remaining</span>
-          <strong id="remainingTasks">0</strong>
+      </header>
+
+      <section id="dashboardTab" class="tab-panel active">
+        <div class="card-grid">
+          <section class="card stat-card">
+            <span>Current Streak</span>
+            <strong id="streakCount">0 days</strong>
+          </section>
+
+          <section class="card stat-card">
+            <span>Tasks Completed</span>
+            <strong id="tasksCompletedCount">0</strong>
+          </section>
+
+          <section class="card stat-card">
+            <span>Workout Entries</span>
+            <strong id="workoutCount">0</strong>
+          </section>
+
+          <section class="card stat-card">
+            <span>Round-up Savings</span>
+            <strong id="roundupTotal">£0.00</strong>
+          </section>
         </div>
-      </div>
-    </section>
 
-    <section class="card filters">
-      <h2>Filter Tasks</h2>
-      <div class="filter-buttons">
-        <button type="button" class="filter-btn active" data-filter="all">All</button>
-        <button type="button" class="filter-btn" data-filter="active">Active</button>
-        <button type="button" class="filter-btn" data-filter="completed">Completed</button>
-      </div>
-    </section>
+        <section class="card">
+          <h3>Overview</h3>
+          <div class="progress">
+            <div id="progressBar"></div>
+          </div>
+          <p id="progressText" class="progress-text">0/0 complete (0%)</p>
+        </section>
 
-    <section class="card">
-      <h2>Tasks</h2>
-      <ul id="taskList" class="task-list"></ul>
-      <p id="emptyMessage" class="empty-message">No tasks yet. Add one above.</p>
-    </section>
+        <section class="card">
+          <h3>Recent Activity</h3>
+          <ul id="recentActivity" class="simple-list"></ul>
+          <p id="recentActivityEmpty" class="muted-text">No activity yet.</p>
+        </section>
+      </section>
+
+      <section id="tasksTab" class="tab-panel">
+        <section class="card">
+          <h3>Add Task</h3>
+          <form id="taskForm" class="form-grid">
+            <input type="text" id="taskName" placeholder="Task name" required />
+
+            <select id="taskCategory">
+              <option value="Health">Health</option>
+              <option value="Study">Study</option>
+              <option value="Work">Work</option>
+              <option value="Personal">Personal</option>
+              <option value="Finance">Finance</option>
+              <option value="Other">Other</option>
+            </select>
+
+            <select id="taskPriority">
+              <option value="Low">Low Priority</option>
+              <option value="Medium" selected>Medium Priority</option>
+              <option value="High">High Priority</option>
+            </select>
+
+            <textarea id="taskNote" placeholder="Optional details..."></textarea>
+
+            <button type="submit">Add Task</button>
+          </form>
+        </section>
+
+        <section class="card">
+          <h3>Task Progress</h3>
+          <div class="filter-buttons">
+            <button type="button" class="filter-btn active" data-filter="all">All</button>
+            <button type="button" class="filter-btn" data-filter="active">Active</button>
+            <button type="button" class="filter-btn" data-filter="completed">Completed</button>
+          </div>
+
+          <div class="stat-row">
+            <div><span>Total:</span> <strong id="totalTasks">0</strong></div>
+            <div><span>Completed:</span> <strong id="completedTasks">0</strong></div>
+            <div><span>Remaining:</span> <strong id="remainingTasks">0</strong></div>
+          </div>
+
+          <ul id="taskList" class="task-list"></ul>
+          <p id="emptyTasksMessage" class="muted-text">No tasks yet.</p>
+        </section>
+      </section>
+
+      <section id="workoutsTab" class="tab-panel">
+        <section class="card">
+          <h3>Log Gym Session</h3>
+          <form id="workoutForm" class="form-grid">
+            <select id="workoutDay">
+              <option value="Push">Push</option>
+              <option value="Pull">Pull</option>
+              <option value="Legs">Legs</option>
+              <option value="Upper">Upper</option>
+              <option value="Lower">Lower</option>
+              <option value="Chest">Chest</option>
+              <option value="Back">Back</option>
+              <option value="Shoulders">Shoulders</option>
+              <option value="Arms">Arms</option>
+              <option value="Custom">Custom</option>
+            </select>
+
+            <input type="text" id="exerciseName" placeholder="Exercise name" required />
+            <input type="number" id="exerciseWeight" placeholder="Weight (kg)" min="0" step="0.5" required />
+            <input type="number" id="exerciseSets" placeholder="Sets" min="1" step="1" required />
+            <input type="number" id="exerciseReps" placeholder="Reps" min="1" step="1" required />
+            <input type="date" id="exerciseDate" required />
+            <textarea id="exerciseNote" placeholder="Optional note e.g. slow negatives, form focus"></textarea>
+
+            <button type="submit">Save Workout Entry</button>
+          </form>
+        </section>
+
+        <section class="card">
+          <h3>Workout Progress</h3>
+          <ul id="workoutList" class="task-list"></ul>
+          <p id="emptyWorkoutMessage" class="muted-text">No workout entries yet.</p>
+        </section>
+      </section>
+
+      <section id="budgetTab" class="tab-panel">
+        <section class="card">
+          <h3>Add Transaction</h3>
+          <form id="budgetForm" class="form-grid">
+            <input type="text" id="transactionTitle" placeholder="Transaction name" required />
+            <input type="number" id="transactionAmount" placeholder="Amount spent (£)" min="0.01" step="0.01" required />
+
+            <select id="transactionCategory">
+              <option value="Food">Food</option>
+              <option value="Transport">Transport</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Bills">Bills</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Other">Other</option>
+            </select>
+
+            <input type="date" id="transactionDate" required />
+            <textarea id="transactionNote" placeholder="Optional note..."></textarea>
+
+            <button type="submit">Add Transaction</button>
+          </form>
+        </section>
+
+        <section class="card">
+          <h3>Round-up Savings</h3>
+          <div class="stat-row">
+            <div><span>Total Spent:</span> <strong id="spentTotal">£0.00</strong></div>
+            <div><span>Total Saved:</span> <strong id="savedTotal">£0.00</strong></div>
+          </div>
+
+          <ul id="transactionList" class="task-list"></ul>
+          <p id="emptyTransactionMessage" class="muted-text">No transactions yet.</p>
+        </section>
+      </section>
+    </main>
   </div>
 
   <script type="module" src="script.js"></script>
