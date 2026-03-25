@@ -8,6 +8,12 @@
 </head>
 <body>
   <div class="app">
+    <div class="auth-bar">
+      <button id="loginBtn">Sign in with Google</button>
+      <button id="logoutBtn" hidden>Log out</button>
+      <p id="userInfo">Not signed in</p>
+    </div>
+
     <header class="header">
       <div>
         <h1>Daily Productivity Tracker</h1>
@@ -71,9 +77,9 @@
     <section class="card filters">
       <h2>Filter Tasks</h2>
       <div class="filter-buttons">
-        <button class="filter-btn active" data-filter="all">All</button>
-        <button class="filter-btn" data-filter="active">Active</button>
-        <button class="filter-btn" data-filter="completed">Completed</button>
+        <button type="button" class="filter-btn active" data-filter="all">All</button>
+        <button type="button" class="filter-btn" data-filter="active">Active</button>
+        <button type="button" class="filter-btn" data-filter="completed">Completed</button>
       </div>
     </section>
 
@@ -84,6 +90,6 @@
     </section>
   </div>
 
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
