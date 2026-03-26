@@ -88,6 +88,16 @@
           <form id="taskForm" class="form-grid">
             <input type="text" id="taskName" placeholder="Task name" required />
 
+            <select id="taskDay">
+              <option value="Monday">Monday</option>
+              <option value="Tuesday">Tuesday</option>
+              <option value="Wednesday">Wednesday</option>
+              <option value="Thursday">Thursday</option>
+              <option value="Friday">Friday</option>
+              <option value="Saturday">Saturday</option>
+              <option value="Sunday">Sunday</option>
+            </select>
+
             <select id="taskCategory">
               <option value="Health">Health</option>
               <option value="Study">Study</option>
@@ -95,6 +105,19 @@
               <option value="Personal">Personal</option>
               <option value="Finance">Finance</option>
               <option value="Other">Other</option>
+            </select>
+
+            <select id="taskPeriod">
+              <option value="Day">Day</option>
+              <option value="Week">Week</option>
+              <option value="Month">Month</option>
+            </select>
+
+            <select id="taskTimeBlock">
+              <option value="Morning">Morning</option>
+              <option value="Afternoon">Afternoon</option>
+              <option value="Evening">Evening</option>
+              <option value="Night">Night</option>
             </select>
 
             <select id="taskPriority">
@@ -123,7 +146,7 @@
             <div><span>Remaining:</span> <strong id="remainingTasks">0</strong></div>
           </div>
 
-          <ul id="taskList" class="task-list"></ul>
+          <div id="taskGroups"></div>
           <p id="emptyTasksMessage" class="muted-text">No tasks yet.</p>
         </section>
       </section>
@@ -136,13 +159,6 @@
               <option value="Push">Push</option>
               <option value="Pull">Pull</option>
               <option value="Legs">Legs</option>
-              <option value="Upper">Upper</option>
-              <option value="Lower">Lower</option>
-              <option value="Chest">Chest</option>
-              <option value="Back">Back</option>
-              <option value="Shoulders">Shoulders</option>
-              <option value="Arms">Arms</option>
-              <option value="Custom">Custom</option>
             </select>
 
             <input type="text" id="exerciseName" placeholder="Exercise name" required />
@@ -158,7 +174,7 @@
 
         <section class="card">
           <h3>Workout Progress</h3>
-          <ul id="workoutList" class="task-list"></ul>
+          <div id="workoutGroups"></div>
           <p id="emptyWorkoutMessage" class="muted-text">No workout entries yet.</p>
         </section>
       </section>
