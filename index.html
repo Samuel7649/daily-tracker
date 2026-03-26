@@ -45,34 +45,59 @@
       </header>
 
       <section id="dashboardTab" class="tab-panel active">
-        <div class="card-grid">
-          <section class="card stat-card">
-            <span>Current Streak</span>
-            <strong id="streakCount">0 days</strong>
-          </section>
+        <section class="card consistency-hero">
+          <div class="consistency-header">
+            <div>
+              <p class="eyebrow">The Consistency Dashboard</p>
+              <h3 id="dashboardMonthTitle">JANUARY</h3>
+              <p class="muted-text">Track your habits, lifts, and consistency across the month.</p>
+            </div>
 
-          <section class="card stat-card">
-            <span>Tasks Completed</span>
-            <strong id="tasksCompletedCount">0</strong>
-          </section>
+            <div class="consistency-mini-stats">
+              <div class="mini-stat">
+                <span>Streak</span>
+                <strong id="streakCount">0 days</strong>
+              </div>
+              <div class="mini-stat">
+                <span>Done Today</span>
+                <strong id="tasksCompletedCount">0</strong>
+              </div>
+              <div class="mini-stat">
+                <span>Workouts</span>
+                <strong id="workoutCount">0</strong>
+              </div>
+              <div class="mini-stat">
+                <span>Saved</span>
+                <strong id="roundupTotal">£0.00</strong>
+              </div>
+            </div>
+          </div>
 
-          <section class="card stat-card">
-            <span>Workout Entries</span>
-            <strong id="workoutCount">0</strong>
-          </section>
-
-          <section class="card stat-card">
-            <span>Round-up Savings</span>
-            <strong id="roundupTotal">£0.00</strong>
-          </section>
-        </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <h4>Today's Completion Rate</h4>
+              <span id="progressText">0/0 complete (0%)</span>
+            </div>
+            <div class="chart-wrap">
+              <div id="progressBar"></div>
+            </div>
+          </div>
+        </section>
 
         <section class="card">
-          <h3>Overview</h3>
-          <div class="progress">
-            <div id="progressBar"></div>
+          <div class="dashboard-table-header">
+            <h3>Task Consistency</h3>
+            <p class="muted-text">Each row is a task. Click any box to mark that day complete.</p>
           </div>
-          <p id="progressText" class="progress-text">0/0 complete (0%)</p>
+
+          <div class="tracker-table-wrap">
+            <table class="tracker-table">
+              <thead id="trackerHead"></thead>
+              <tbody id="trackerBody"></tbody>
+            </table>
+          </div>
+
+          <p id="trackerEmptyMessage" class="muted-text">No tasks yet.</p>
         </section>
 
         <section class="card">
@@ -133,7 +158,8 @@
         </section>
 
         <section class="card">
-          <h3>Task Progress</h3>
+          <h3>Today's Task List</h3>
+
           <div class="filter-buttons">
             <button type="button" class="filter-btn active" data-filter="all">All</button>
             <button type="button" class="filter-btn" data-filter="active">Active</button>
@@ -142,11 +168,11 @@
 
           <div class="stat-row">
             <div><span>Total:</span> <strong id="totalTasks">0</strong></div>
-            <div><span>Completed:</span> <strong id="completedTasks">0</strong></div>
+            <div><span>Completed Today:</span> <strong id="completedTasks">0</strong></div>
             <div><span>Remaining:</span> <strong id="remainingTasks">0</strong></div>
           </div>
 
-          <div id="taskGroups"></div>
+          <ul id="taskList" class="task-list"></ul>
           <p id="emptyTasksMessage" class="muted-text">No tasks yet.</p>
         </section>
       </section>
