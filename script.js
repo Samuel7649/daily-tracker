@@ -45,7 +45,7 @@ const defaultTasks = [
     timeBlock: "Evening",
     priority: "High",
     note: "Log a proper session in the Gym section.",
-    completed: false,
+    history: {},
     createdAt: new Date().toISOString()
   },
   {
@@ -57,7 +57,7 @@ const defaultTasks = [
     timeBlock: "Morning",
     priority: "High",
     note: "Do focused study work.",
-    completed: false,
+    history: {},
     createdAt: new Date().toISOString()
   }
 ];
@@ -66,6 +66,7 @@ const els = {
   todayDate: document.getElementById("todayDate"),
   pageTitle: document.getElementById("pageTitle"),
   statusText: document.getElementById("statusText"),
+  dashboardMonthTitle: document.getElementById("dashboardMonthTitle"),
   streakCount: document.getElementById("streakCount"),
   tasksCompletedCount: document.getElementById("tasksCompletedCount"),
   workoutCount: document.getElementById("workoutCount"),
@@ -74,11 +75,14 @@ const els = {
   progressText: document.getElementById("progressText"),
   recentActivity: document.getElementById("recentActivity"),
   recentActivityEmpty: document.getElementById("recentActivityEmpty"),
+  trackerHead: document.getElementById("trackerHead"),
+  trackerBody: document.getElementById("trackerBody"),
+  trackerEmptyMessage: document.getElementById("trackerEmptyMessage"),
 
   totalTasks: document.getElementById("totalTasks"),
   completedTasks: document.getElementById("completedTasks"),
   remainingTasks: document.getElementById("remainingTasks"),
-  taskGroups: document.getElementById("taskGroups"),
+  taskList: document.getElementById("taskList"),
   emptyTasksMessage: document.getElementById("emptyTasksMessage"),
 
   workoutGroups: document.getElementById("workoutGroups"),
@@ -121,13 +125,14 @@ const els = {
 };
 
 const tabButtons = document.querySelectorAll(".tab-btn");
+const filterButtons = document.querySelectorAll(".filter-btn");
+
 const tabPanels = {
   dashboard: document.getElementById("dashboardTab"),
   tasks: document.getElementById("tasksTab"),
   workouts: document.getElementById("workoutsTab"),
   budget: document.getElementById("budgetTab")
 };
-const filterButtons = document.querySelectorAll(".filter-btn");
 
 let currentUser = null;
 let liveTasks = [];
@@ -137,6 +142,10 @@ let unsubscribers = [];
 
 function todayISODate() {
   return new Date().toISOString().split("T")[0];
+}
+
+function getTodayKey() {
+  return todayISODate();
 }
 
 function prettyDate(date = new Date()) {
@@ -150,6 +159,19 @@ function prettyDate(date = new Date()) {
 
 function currentDayName() {
   return new Date().toLocaleDateString(undefined, { weekday: "long" });
+}
+
+function currentMonthName() {
+  return new Date().toLocaleDateString(undefined, { month: "long" }).toUpperCase();
+}
+
+function daysInCurrentMonth() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+}
+
+function todayDayNumber() {
+  return new Date().getDate();
 }
 
 function formatMoney(value) {
@@ -175,12 +197,6 @@ function loadFilter() {
 
 function saveFilter(filter) {
   localStorage.setItem(FILTER_KEY, filter);
-}
-
-function getFilteredTasks(tasks, filter) {
-  if (filter === "active") return tasks.filter((task) => !task.completed);
-  if (filter === "completed") return tasks.filter((task) => task.completed);
-  return tasks;
 }
 
 function loadTheme() {
@@ -225,13 +241,26 @@ function collectionRef(name) {
   return collection(db, "users", currentUser.uid, name);
 }
 
-async function seedDefaultTasks(uid) {
-  const snapshot = await getDocs(collection(db, "users", uid, "tasks"));
-  if (!snapshot.empty) return;
+function normalizeTask(task) {
+  return {
+    history: {},
+    ...task,
+    history: task.history || {}
+  };
+}
 
-  for (const task of defaultTasks) {
-    await setDoc(doc(db, "users", uid, "tasks", task.id), task);
-  }
+function isTaskDoneOnDate(task, dateKey) {
+  return Boolean(task.history && task.history[dateKey]);
+}
+
+function isTaskDoneToday(task) {
+  return isTaskDoneOnDate(task, getTodayKey());
+}
+
+function getFilteredTasks(tasks, filter) {
+  if (filter === "active") return tasks.filter((task) => !isTaskDoneToday(task));
+  if (filter === "completed") return tasks.filter((task) => isTaskDoneToday(task));
+  return tasks;
 }
 
 function roundUpValue(amount) {
@@ -248,10 +277,9 @@ function uniqueSortedDates() {
   const activeDates = new Set();
 
   liveTasks.forEach((task) => {
-    if (task.completed && task.completedAt) {
-      const normalized = normalizeDateString(task.completedAt);
-      if (normalized) activeDates.add(normalized);
-    }
+    Object.entries(task.history || {}).forEach(([dateKey, done]) => {
+      if (done) activeDates.add(dateKey);
+    });
   });
 
   liveWorkouts.forEach((entry) => {
@@ -262,7 +290,9 @@ function uniqueSortedDates() {
     if (entry.date) activeDates.add(entry.date);
   });
 
-  return [...activeDates].sort((a, b) => new Date(b) - new Date(a));
+  return [...activeDates]
+    .filter((dateKey) => normalizeDateString(dateKey))
+    .sort((a, b) => new Date(b) - new Date(a));
 }
 
 function calculateStreak() {
@@ -280,14 +310,22 @@ function calculateStreak() {
 }
 
 function recentActivityItems() {
+  const taskActivity = [];
+
+  liveTasks.forEach((task) => {
+    Object.entries(task.history || {}).forEach(([dateKey, done]) => {
+      if (done) {
+        taskActivity.push({
+          type: "task",
+          text: `Completed task: ${task.name}`,
+          date: `${dateKey}T12:00:00`
+        });
+      }
+    });
+  });
+
   const items = [
-    ...liveTasks
-      .filter((task) => task.completed && task.completedAt)
-      .map((task) => ({
-        type: "task",
-        text: `Completed task: ${task.name}`,
-        date: task.completedAt
-      })),
+    ...taskActivity,
     ...liveWorkouts.map((entry) => ({
       type: "workout",
       text: `${entry.exercise} logged for ${entry.day} — ${entry.weight}kg`,
@@ -315,12 +353,21 @@ function previousExerciseEntry(exerciseName, currentId) {
     .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
 }
 
+async function seedDefaultTasks(uid) {
+  const snapshot = await getDocs(collection(db, "users", uid, "tasks"));
+  if (!snapshot.empty) return;
+
+  for (const task of defaultTasks) {
+    await setDoc(doc(db, "users", uid, "tasks", task.id), task);
+  }
+}
+
 async function addTask(data) {
   const id = crypto.randomUUID();
   await setDoc(doc(db, "users", currentUser.uid, "tasks", id), {
     id,
     ...data,
-    completed: false,
+    history: {},
     createdAt: new Date().toISOString()
   });
 }
@@ -332,6 +379,17 @@ async function updateTask(id, updates) {
   await setDoc(
     doc(db, "users", currentUser.uid, "tasks", id),
     { ...existing, ...updates },
+    { merge: true }
+  );
+}
+
+async function toggleTaskDay(task, dateKey) {
+  const updatedHistory = { ...(task.history || {}) };
+  updatedHistory[dateKey] = !updatedHistory[dateKey];
+
+  await setDoc(
+    doc(db, "users", currentUser.uid, "tasks", task.id),
+    { history: updatedHistory },
     { merge: true }
   );
 }
@@ -366,20 +424,97 @@ async function deleteTransaction(id) {
   await deleteDoc(doc(db, "users", currentUser.uid, "transactions", id));
 }
 
+function renderDashboardTracker() {
+  const totalDays = daysInCurrentMonth();
+  const today = todayDayNumber();
+
+  els.trackerHead.innerHTML = "";
+  els.trackerBody.innerHTML = "";
+
+  if (liveTasks.length === 0) {
+    els.trackerEmptyMessage.style.display = "block";
+    return;
+  }
+
+  els.trackerEmptyMessage.style.display = "none";
+
+  const headRow = document.createElement("tr");
+  headRow.innerHTML = `<th class="habit-name">Tasks</th>`;
+
+  for (let day = 1; day <= totalDays; day += 1) {
+    const th = document.createElement("th");
+    th.textContent = day;
+    if (day === today) th.classList.add("today-col");
+    headRow.appendChild(th);
+  }
+
+  els.trackerHead.appendChild(headRow);
+
+  liveTasks
+    .slice()
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+    .forEach((task) => {
+      const row = document.createElement("tr");
+
+      const labelCell = document.createElement("td");
+      labelCell.className = "habit-name";
+      labelCell.innerHTML = `
+        <div class="tracker-row-label">
+          <span>${escapeHtml(task.name)}</span>
+          <small>${escapeHtml(task.dayOfWeek || "Any day")} • ${escapeHtml(task.timeBlock || "Any time")}</small>
+        </div>
+      `;
+      row.appendChild(labelCell);
+
+      for (let day = 1; day <= totalDays; day += 1) {
+        const cell = document.createElement("td");
+
+        if (day === today) {
+          cell.classList.add("today-col");
+        }
+
+        const dateKey = new Date(
+          new Date().getFullYear(),
+          new Date().getMonth(),
+          day
+        )
+          .toISOString()
+          .split("T")[0];
+
+        const isDone = isTaskDoneOnDate(task, dateKey);
+
+        const check = document.createElement("div");
+        check.className = `tracker-check${isDone ? " done" : ""}`;
+
+        check.addEventListener("click", async () => {
+          await toggleTaskDay(task, dateKey);
+        });
+
+        cell.appendChild(check);
+        row.appendChild(cell);
+      }
+
+      els.trackerBody.appendChild(row);
+    });
+}
+
 function renderDashboard() {
-  const completedTasks = liveTasks.filter((task) => task.completed).length;
+  const completedToday = liveTasks.filter((task) => isTaskDoneToday(task)).length;
   const totalTasks = liveTasks.length;
-  const percent = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+  const percent = totalTasks === 0 ? 0 : Math.round((completedToday / totalTasks) * 100);
   const roundUpTotal = liveTransactions.reduce((sum, item) => sum + Number(item.roundUp || 0), 0);
   const streak = calculateStreak();
 
+  els.dashboardMonthTitle.textContent = currentMonthName();
   els.streakCount.textContent = `${streak} day${streak === 1 ? "" : "s"}`;
-  els.tasksCompletedCount.textContent = completedTasks;
+  els.tasksCompletedCount.textContent = completedToday;
   els.workoutCount.textContent = liveWorkouts.length;
   els.roundupTotal.textContent = formatMoney(roundUpTotal);
 
   els.progressBar.style.width = `${percent}%`;
-  els.progressText.textContent = `${completedTasks}/${totalTasks} complete (${percent}%)`;
+  els.progressText.textContent = `${completedToday}/${totalTasks} complete (${percent}%)`;
+
+  renderDashboardTracker();
 
   const activity = recentActivityItems();
   els.recentActivity.innerHTML = "";
@@ -388,6 +523,7 @@ function renderDashboard() {
     els.recentActivityEmpty.style.display = "block";
   } else {
     els.recentActivityEmpty.style.display = "none";
+
     activity.forEach((item) => {
       const li = document.createElement("li");
       li.innerHTML = `
@@ -403,14 +539,14 @@ function renderTasks() {
   const filter = loadFilter();
   const visibleTasks = getFilteredTasks(liveTasks, filter);
 
-  const completed = liveTasks.filter((task) => task.completed).length;
+  const completedToday = liveTasks.filter((task) => isTaskDoneToday(task)).length;
   const total = liveTasks.length;
-  const remaining = total - completed;
+  const remaining = total - completedToday;
 
   els.totalTasks.textContent = total;
-  els.completedTasks.textContent = completed;
+  els.completedTasks.textContent = completedToday;
   els.remainingTasks.textContent = remaining;
-  els.taskGroups.innerHTML = "";
+  els.taskList.innerHTML = "";
 
   if (visibleTasks.length === 0) {
     els.emptyTasksMessage.style.display = "block";
@@ -418,133 +554,52 @@ function renderTasks() {
     els.emptyTasksMessage.style.display = "none";
   }
 
-  const dayOrder = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday"
-  ];
+  visibleTasks
+    .slice()
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+    .forEach((task) => {
+      const li = document.createElement("li");
+      li.className = "task-item";
 
-  const timeBlockOrder = ["Morning", "Afternoon", "Evening", "Night"];
-  const today = currentDayName();
+      const priorityClass = `priority-${(task.priority || "Medium").toLowerCase()}`;
+      const doneToday = isTaskDoneToday(task);
 
-  const groupedTasks = {};
-
-  dayOrder.forEach((day) => {
-    groupedTasks[day] = {};
-    timeBlockOrder.forEach((block) => {
-      groupedTasks[day][block] = [];
-    });
-  });
-
-  visibleTasks.forEach((task) => {
-    const day = dayOrder.includes(task.dayOfWeek) ? task.dayOfWeek : today;
-    const block = timeBlockOrder.includes(task.timeBlock) ? task.timeBlock : "Morning";
-    groupedTasks[day][block].push(task);
-  });
-
-  dayOrder.forEach((day) => {
-    const daySection = document.createElement("section");
-    daySection.className = `day-task-group${day === today ? " today" : ""}`;
-
-    const dayTitleRow = document.createElement("div");
-    dayTitleRow.className = "day-task-title-row";
-
-    const dayTitle = document.createElement("h4");
-    dayTitle.className = "day-task-title";
-    dayTitle.textContent = day;
-    dayTitleRow.appendChild(dayTitle);
-
-    if (day === today) {
-      const todayBadge = document.createElement("span");
-      todayBadge.className = "today-pill";
-      todayBadge.textContent = "Today";
-      dayTitleRow.appendChild(todayBadge);
-    }
-
-    daySection.appendChild(dayTitleRow);
-
-    let hasAnyTasksInDay = false;
-
-    timeBlockOrder.forEach((block) => {
-      const tasks = groupedTasks[day][block]
-        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-
-      if (tasks.length === 0) return;
-
-      hasAnyTasksInDay = true;
-
-      const blockSection = document.createElement("div");
-      blockSection.className = "time-block-section";
-
-      const blockTitle = document.createElement("h5");
-      blockTitle.className = "time-block-title";
-      blockTitle.textContent = block;
-      blockSection.appendChild(blockTitle);
-
-      const list = document.createElement("ul");
-      list.className = "task-list";
-
-      tasks.forEach((task) => {
-        const li = document.createElement("li");
-        li.className = "task-item";
-
-        const priorityClass = `priority-${task.priority.toLowerCase()}`;
-
-        li.innerHTML = `
-          <div class="task-top">
-            <div class="task-main">
-              <input type="checkbox" ${task.completed ? "checked" : ""} />
-              <div>
-                <h4 class="task-title ${task.completed ? "completed" : ""}">
-                  ${escapeHtml(task.name)}
-                </h4>
-                <div class="task-meta">
-                  <span class="badge category">${escapeHtml(task.category)}</span>
-                  <span class="badge">${escapeHtml(task.period || "Day")}</span>
-                  <span class="badge">${escapeHtml(task.timeBlock || "Morning")}</span>
-                  <span class="badge ${priorityClass}">${escapeHtml(task.priority)} Priority</span>
-                </div>
-                ${task.note ? `<p class="task-note">${escapeHtml(task.note)}</p>` : ""}
-                ${
-                  task.completedAt
-                    ? `<div class="subtext">Completed: ${new Date(task.completedAt).toLocaleString()}</div>`
-                    : ""
-                }
+      li.innerHTML = `
+        <div class="task-top">
+          <div class="task-main">
+            <input type="checkbox" ${doneToday ? "checked" : ""} />
+            <div>
+              <h4 class="task-title ${doneToday ? "completed" : ""}">
+                ${escapeHtml(task.name)}
+              </h4>
+              <div class="task-meta">
+                <span class="badge category">${escapeHtml(task.category || "Other")}</span>
+                <span class="badge">${escapeHtml(task.dayOfWeek || "Any day")}</span>
+                <span class="badge">${escapeHtml(task.timeBlock || "Morning")}</span>
+                <span class="badge">${escapeHtml(task.period || "Day")}</span>
+                <span class="badge ${priorityClass}">${escapeHtml(task.priority || "Medium")} Priority</span>
               </div>
+              ${task.note ? `<p class="task-note">${escapeHtml(task.note)}</p>` : ""}
+              <div class="subtext">Today: ${doneToday ? "Completed" : "Not completed"}</div>
             </div>
-            <button class="delete-btn" type="button">Delete</button>
           </div>
-        `;
+          <button class="delete-btn" type="button">Delete</button>
+        </div>
+      `;
 
-        const checkbox = li.querySelector('input[type="checkbox"]');
-        const deleteBtn = li.querySelector(".delete-btn");
+      const checkbox = li.querySelector('input[type="checkbox"]');
+      const deleteBtn = li.querySelector(".delete-btn");
 
-        checkbox.addEventListener("change", async () => {
-          await updateTask(task.id, {
-            completed: checkbox.checked,
-            completedAt: checkbox.checked ? new Date().toISOString() : null
-          });
-        });
-
-        deleteBtn.addEventListener("click", async () => {
-          await deleteTask(task.id);
-        });
-
-        list.appendChild(li);
+      checkbox.addEventListener("change", async () => {
+        await toggleTaskDay(task, getTodayKey());
       });
 
-      blockSection.appendChild(list);
-      daySection.appendChild(blockSection);
-    });
+      deleteBtn.addEventListener("click", async () => {
+        await deleteTask(task.id);
+      });
 
-    if (hasAnyTasksInDay) {
-      els.taskGroups.appendChild(daySection);
-    }
-  });
+      els.taskList.appendChild(li);
+    });
 
   filterButtons.forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.filter === filter);
@@ -576,7 +631,7 @@ function renderWorkouts() {
   routineOrder.forEach((groupName) => {
     const entries = groupedWorkouts[groupName];
 
-    if (!entries || entries.length === 0) return;
+    if (!entries.length) return;
 
     const section = document.createElement("section");
     section.className = "workout-group";
@@ -590,6 +645,7 @@ function renderWorkouts() {
     list.className = "task-list";
 
     entries
+      .slice()
       .sort((a, b) => new Date(b.date) - new Date(a.date))
       .forEach((entry) => {
         const prev = previousExerciseEntry(entry.exercise, entry.id);
@@ -613,9 +669,7 @@ function renderWorkouts() {
                   <span class="badge category">${escapeHtml(entry.day)}</span>
                   <span class="badge priority-medium">${escapeHtml(entry.weight)} kg</span>
                 </div>
-                <p class="task-note">
-                  ${escapeHtml(entry.sets)} sets × ${escapeHtml(entry.reps)} reps
-                </p>
+                <p class="task-note">${escapeHtml(entry.sets)} sets × ${escapeHtml(entry.reps)} reps</p>
                 <div class="sub-card">
                   <div><strong>Date:</strong> ${escapeHtml(entry.date)}</div>
                   <div><strong>Last logged weight:</strong> ${
@@ -668,6 +722,7 @@ function renderBudget() {
   els.emptyTransactionMessage.style.display = "none";
 
   liveTransactions
+    .slice()
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .forEach((entry) => {
       const li = document.createElement("li");
@@ -712,7 +767,7 @@ function renderStatus() {
   } else if (streak >= 1) {
     els.statusText.textContent = `You are on a ${streak}-day streak — keep it going.`;
   } else {
-    els.statusText.textContent = "You are synced. Add a task, workout, or transaction to start your streak.";
+    els.statusText.textContent = "You are synced. Click any task box to start your streak.";
   }
 }
 
@@ -744,7 +799,7 @@ function subscribeToUserData() {
 
   unsubscribers.push(
     onSnapshot(collectionRef("tasks"), (snapshot) => {
-      liveTasks = snapshot.docs.map((docItem) => docItem.data());
+      liveTasks = snapshot.docs.map((docItem) => normalizeTask(docItem.data()));
       renderAll();
     })
   );
@@ -780,6 +835,7 @@ els.themeToggle.addEventListener("click", toggleTheme);
 
 els.taskForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+
   if (!currentUser) {
     alert("Please sign in first.");
     return;
@@ -807,6 +863,7 @@ els.taskForm.addEventListener("submit", async (e) => {
 
 els.workoutForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+
   if (!currentUser) {
     alert("Please sign in first.");
     return;
@@ -832,6 +889,7 @@ els.workoutForm.addEventListener("submit", async (e) => {
 
 els.budgetForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+
   if (!currentUser) {
     alert("Please sign in first.");
     return;
@@ -839,6 +897,7 @@ els.budgetForm.addEventListener("submit", async (e) => {
 
   const title = els.transactionTitle.value.trim();
   const amount = Number(els.transactionAmount.value);
+
   if (!title || !amount) return;
 
   const roundedTo = Math.ceil(amount);
