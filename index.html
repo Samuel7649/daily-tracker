@@ -28,6 +28,7 @@
         <button type="button" class="tab-btn active" data-tab="dashboard">Dashboard</button>
         <button type="button" class="tab-btn" data-tab="tasks">Tasks</button>
         <button type="button" class="tab-btn" data-tab="workouts">Gym</button>
+        <button type="button" class="tab-btn" data-tab="nutrition">Nutrition</button>
         <button type="button" class="tab-btn" data-tab="budget">Budget</button>
       </nav>
     </aside>
@@ -87,7 +88,7 @@
         <section class="card">
           <div class="dashboard-table-header">
             <h3>Task Consistency</h3>
-            <p class="muted-text">Each row is a task. Click any box to mark that day complete.</p>
+            <p class="muted-text">Each row is a task. Click any valid box to mark that day complete.</p>
           </div>
 
           <div class="tracker-table-wrap">
@@ -98,6 +99,11 @@
           </div>
 
           <p id="trackerEmptyMessage" class="muted-text">No tasks yet.</p>
+        </section>
+
+        <section class="card">
+          <h3>Your Current Path</h3>
+          <div id="pathCard"></div>
         </section>
 
         <section class="card">
@@ -112,6 +118,11 @@
           <h3>Add Task</h3>
           <form id="taskForm" class="form-grid">
             <input type="text" id="taskName" placeholder="Task name" required />
+
+            <select id="taskFrequency">
+              <option value="daily">Every Day</option>
+              <option value="weekly">One Day Per Week</option>
+            </select>
 
             <select id="taskDay">
               <option value="Monday">Monday</option>
@@ -179,6 +190,40 @@
 
       <section id="workoutsTab" class="tab-panel">
         <section class="card">
+          <h3>Body Profile</h3>
+          <form id="profileForm" class="form-grid">
+            <input type="number" id="userAge" placeholder="Age" min="13" max="100" step="1" required />
+
+            <select id="userSex">
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+
+            <input type="number" id="userHeight" placeholder="Height (cm)" min="100" max="250" step="1" required />
+            <input type="number" id="userWeight" placeholder="Weight (kg)" min="30" max="300" step="0.1" required />
+
+            <select id="userGoal">
+              <option value="muscle">Build Muscle</option>
+              <option value="fat-loss">Lose Fat</option>
+              <option value="recomp">Body Recomposition</option>
+              <option value="maintain">Maintain</option>
+            </select>
+
+            <input type="number" id="goalWeight" placeholder="Goal weight (kg) - optional" min="30" max="300" step="0.1" />
+            <input type="number" id="bodyFat" placeholder="Body fat % (optional)" min="3" max="60" step="0.1" />
+            <input type="number" id="dailySteps" placeholder="Average daily steps" min="0" max="50000" step="100" />
+            <input type="number" id="sleepHours" placeholder="Average sleep per night (hours)" min="0" max="24" step="0.1" required />
+
+            <button type="submit">Save Body Profile</button>
+          </form>
+        </section>
+
+        <section class="card">
+          <h3>Fitness Intelligence</h3>
+          <div id="fitnessCard"></div>
+        </section>
+
+        <section class="card">
           <h3>Log Gym Session</h3>
           <form id="workoutForm" class="form-grid">
             <select id="workoutDay">
@@ -202,6 +247,42 @@
           <h3>Workout Progress</h3>
           <div id="workoutGroups"></div>
           <p id="emptyWorkoutMessage" class="muted-text">No workout entries yet.</p>
+        </section>
+      </section>
+
+      <section id="nutritionTab" class="tab-panel">
+        <section class="card">
+          <h3>Add Food</h3>
+          <form id="nutritionForm" class="form-grid">
+            <input type="text" id="foodName" placeholder="Food name e.g. chicken rice" required />
+            <input type="number" id="foodGrams" placeholder="Amount (grams)" min="1" step="1" required />
+
+            <select id="foodMeal">
+              <option value="Breakfast">Breakfast</option>
+              <option value="Lunch">Lunch</option>
+              <option value="Dinner">Dinner</option>
+              <option value="Snack">Snack</option>
+            </select>
+
+            <input type="date" id="foodDate" required />
+
+            <input type="number" id="foodCalories" placeholder="Calories (optional override)" min="0" step="1" />
+            <input type="number" id="foodProtein" placeholder="Protein g (optional override)" min="0" step="0.1" />
+            <input type="number" id="foodCarbs" placeholder="Carbs g (optional override)" min="0" step="0.1" />
+            <input type="number" id="foodFats" placeholder="Fats g (optional override)" min="0" step="0.1" />
+
+            <textarea id="foodNote" placeholder="Optional note..."></textarea>
+
+            <button type="submit">Add Food Entry</button>
+          </form>
+          <p class="muted-text">Leave macros blank and the app will estimate them from the food name and grams.</p>
+        </section>
+
+        <section class="card">
+          <h3>Today's Nutrition</h3>
+          <div id="nutritionTargets"></div>
+          <ul id="foodList" class="task-list"></ul>
+          <p id="emptyFoodMessage" class="muted-text">No food entries yet.</p>
         </section>
       </section>
 
